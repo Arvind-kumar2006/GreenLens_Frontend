@@ -20,7 +20,3 @@ export const getCategoryBreakdown = (activities = []) => {
 
   return breakdown;
 };
-
-export default {
-  getCategoryBreakdown
-};

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Chart as ChartJS,
   ArcElement,
@@ -18,11 +18,27 @@ const EmissionsChart = ({ refreshKey, darkMode: darkModeFromProps }) => {
   const [error, setError] = useState('');
   const [darkMode, setDarkMode] = useState(darkModeFromProps || document.body.classList.contains('dark-mode'));
 
+  const fetchActivities = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const result = await getActivities({ limit: 100 });
+      if (result.success) {
+        setActivities(result.activities || []);
+      }
+    } catch (err) {
+      setError('Failed to load activities');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     // Immediately fetch activities when refreshKey changes
     console.log('EmissionsChart: refreshKey changed to', refreshKey, 'fetching fresh data...');
     fetchActivities();
-  }, [refreshKey]);
+  }, [refreshKey, fetchActivities]);
 
   useEffect(() => {
     // Update dark mode from props if provided
@@ -41,22 +57,6 @@ const EmissionsChart = ({ refreshKey, darkMode: darkModeFromProps }) => {
       return () => observer.disconnect();
     }
   }, [darkModeFromProps]);
-
-  const fetchActivities = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const result = await getActivities({ limit: 100 });
-      if (result.success) {
-        setActivities(result.activities || []);
-      }
-    } catch (err) {
-      setError('Failed to load activities');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return (

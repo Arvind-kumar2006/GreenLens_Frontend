@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import '../styles/HistoryPage.css';
 import { getActivities, getEmissionsByPeriod, deleteActivity } from '../services/api';
 import jsPDF from 'jspdf';
@@ -30,10 +30,6 @@ function HistoryPage({ refreshKey, onActivityDeleted }) {
   const [filterCategory, setFilterCategory] = useState('all');
   const chartRef = useRef(null);
 
-  useEffect(() => {
-    fetchHistoryData();
-  }, [refreshKey]);
-
   const generate7DayData = (emissionsData) => {
     // Create an array of the last 7 days starting from today going back
     const today = new Date();
@@ -57,7 +53,29 @@ function HistoryPage({ refreshKey, onActivityDeleted }) {
     return sevenDays;
   };
 
-  const fetchHistoryData = async () => {
+  const calculateStats = useCallback((activitiesList, emissionsData) => {
+    // Calculate total from all activities
+    const totalCo2 = activitiesList.reduce((sum, act) => sum + (act.co2e || 0), 0);
+    const totalEntries = activitiesList.length;
+    
+    // Calculate daily average from emissions data (always divide by 7 days)
+    const dailyTotal = emissionsData.reduce((sum, day) => sum + (day.co2e || 0), 0);
+    const dailyAverage = emissionsData.length > 0 ? dailyTotal / 7 : 0;
+    
+    // Calculate highest day
+    const highestDay = emissionsData.length > 0
+      ? Math.max(...emissionsData.map(day => day.co2e || 0))
+      : 0;
+
+    setStats({
+      totalCo2: parseFloat(totalCo2.toFixed(2)),
+      dailyAverage: parseFloat(dailyAverage.toFixed(2)),
+      highestDay: parseFloat(highestDay.toFixed(2)),
+      totalEntries,
+    });
+  }, []);
+
+  const fetchHistoryData = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch all activities
@@ -89,29 +107,11 @@ function HistoryPage({ refreshKey, onActivityDeleted }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [calculateStats]);
 
-  const calculateStats = (activitiesList, emissionsData) => {
-    // Calculate total from all activities
-    const totalCo2 = activitiesList.reduce((sum, act) => sum + (act.co2e || 0), 0);
-    const totalEntries = activitiesList.length;
-    
-    // Calculate daily average from emissions data (always divide by 7 days)
-    const dailyTotal = emissionsData.reduce((sum, day) => sum + (day.co2e || 0), 0);
-    const dailyAverage = emissionsData.length > 0 ? dailyTotal / 7 : 0;
-    
-    // Calculate highest day
-    const highestDay = emissionsData.length > 0
-      ? Math.max(...emissionsData.map(day => day.co2e || 0))
-      : 0;
-
-    setStats({
-      totalCo2: parseFloat(totalCo2.toFixed(2)),
-      dailyAverage: parseFloat(dailyAverage.toFixed(2)),
-      highestDay: parseFloat(highestDay.toFixed(2)),
-      totalEntries,
-    });
-  };
+  useEffect(() => {
+    fetchHistoryData();
+  }, [refreshKey, fetchHistoryData]);
 
   const handleDeleteActivity = async (id) => {
     if (!window.confirm('Are you sure you want to delete this activity?')) {
@@ -240,7 +240,7 @@ function HistoryPage({ refreshKey, onActivityDeleted }) {
     };
 
     const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
+    // pageWidth not used directly; keep only height when needed
     const pageHeight = doc.internal.pageSize.getHeight();
 
     // Header
