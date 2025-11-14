@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getActivities, deleteActivity } from '../services/api';
 import { format } from 'date-fns';
 import '../styles/ActivityList.css';
@@ -9,11 +9,7 @@ const ActivityList = ({ refreshKey }) => {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
 
-  useEffect(() => {
-    fetchActivities();
-  }, [refreshKey, filter]);
-
-  const fetchActivities = async () => {
+  const fetchActivities = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -28,7 +24,11 @@ const ActivityList = ({ refreshKey }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
+
+  useEffect(() => {
+    fetchActivities();
+  }, [refreshKey, fetchActivities]);
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this activity?')) {
